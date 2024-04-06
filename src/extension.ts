@@ -323,6 +323,8 @@ function checkAPIKEY() : Boolean{
 	return true;
 }
 
+let editor = null;
+
 export function activate(context: vscode.ExtensionContext) {
 
 	const provider = new GPTViewProvider(context.extensionUri);
@@ -583,7 +585,8 @@ enum CustomEventCommand {
 	CALL_API = "CALL_API",
 	POST_MESSAGE = "POST_MESSAGE",
 	INIT = "INIT",
-	COPY_CLIPBOARD = "COPY_CLIPBOARD"
+	COPY_CLIPBOARD = "COPY_CLIPBOARD",
+	INSERT_EDITOR = "INSERT_EDITOR"
 }
 
 type Message = {
@@ -685,7 +688,29 @@ class GPTViewProvider implements vscode.WebviewViewProvider {
 				case CustomEventCommand.COPY_CLIPBOARD:
 					const value = data.message;
 					vscode.env.clipboard.writeText(value);
-					vscode.window.showInformationMessage("copied to clipboard");
+					vscode.window.showInformationMessage("Copied to clipboard");
+					break;
+				
+				case CustomEventCommand.INSERT_EDITOR:
+					const code = data.message;
+					const editor = vscode.window.activeTextEditor;
+					
+					const selection = editor.selection;
+					const cursorPosition = editor.selection.end;
+
+					if(selection && !selection.isEmpty){
+						editor.edit((editBuilder) => {
+							return editBuilder.replace(selection,code);
+						})
+					}
+					else {
+						editor.edit((editBuilder) => {
+							return editBuilder.insert(cursorPosition,code);
+						})
+					}
+
+					break;
+
 			}
 
 		});
@@ -756,7 +781,11 @@ class GPTViewProvider implements vscode.WebviewViewProvider {
 				}
 
 				pre {
-					margin: -12px 0px !important;
+					margin: 0px 0px !important;
+				}
+
+				code {
+					margin: 0px !important;
 				}
 
 				li {

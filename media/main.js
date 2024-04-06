@@ -41,6 +41,13 @@ function handleCopy(currId){
     })
 }
 
+function handleInsert(currId){
+    vscode.postMessage({
+        command: "INSERT_EDITOR",
+        message: cache[currId]
+    })
+}
+
 function getAssistandCard(prompt){
 
     const renderer = new marked.Renderer();
@@ -49,7 +56,10 @@ function getAssistandCard(prompt){
         cache[id] = code;
         return `
         <pre style="position:relative">
-            <button class="bg-white text-black text-xs rounded-md p-1" style="position:absolute; top:0px; right: 10px" onClick="handleCopy(${id++})")>Copy</button>
+            <div class="flex" style="position:absolute; top:12px; right:0px;">
+                <button class="bg-white text-black text-xs rounded-md p-1"  onClick="handleCopy(${id})")>${"Copy"}</button>
+                <button class="bg-white text-black text-xs rounded-md p-1 ml-1"  onClick="handleInsert(${id++})")>${"Insert"}</button>
+            </div>
             <code class="hljs ${language}">${hljs.highlightAuto(code).value}
             </code>
         </pre>`;
@@ -84,7 +94,8 @@ function getAssistandCard(prompt){
     var img2 = document.createElement("img");
     img2.classList.add("rounded");
     img2.src = companyLogoURI;
-    img2.style.width = "40%";
+    img2.style.width = "fit";
+    img2.style.height = "40px";
     img2.style.marginLeft = "8px";
 
     // Append the image and paragraph elements to the flex div
