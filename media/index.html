@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<script src="https://cdn.tailwindcss.com"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.1/marked.min.js" integrity="sha512-pSeTnZAQF/RHxb0ysMoYQI/BRZsa5XuklcrgFfU3YZIdnD3LvkkqzrIeHxzFi6gKtI8Cpq2DEWdZjMTcNVhUYA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+	<script src="https://cdn.jsdelivr.net/npm/marked-highlight@2.1.1/lib/index.umd.min.js"></script>
+	<title>CHAT</title>
+	<style>
+		textarea:focus {
+			outline: 0;
+			resize: none;
+		}
+
+		textarea {
+			resize: none;
+		}
+	</style>
+</head>
+<body class="bg-black py-12" style="font-family: Segoe WPC, Segoe UI, sans-serif; font-weight: bold;">
+	
+	<div class="flex flex-col h-screen items-center">
+
+		<div id="default-content" class="mt-4">
+			<div id="intro" class="flex flex-col items-center">
+				<a href="https://google.com" >
+					<img src="https://codesnippets.ai/_next/image?url=%2Fassets%2Fimages%2Flogo.png&w=256&q=75" />
+				</a>
+	
+				<p class="text-white mt-3" style="font-size: 22px;text-align: center;">Hi, I'm your AI powered programmer</p>
+				<img class="mt-2" src="https://codesnippets.ai/_next/image?url=%2Fassets%2Fimages%2Fpoweredby.png&w=384&q=75" style="height: 60px;" />
+			</div>
+	
+			<div class="features flex flex-col items-center mt-6">
+				<p class="text-white text-xl">How can I help?</p>
+				<div class="text-gray-300 mt-2">
+					<p class="font-normal bg-slate-600 rounded-md py-3 px-10 mt-4" style="background-color: #3c3c3c;text-align: center;">Turn your questions into code</p>
+					<p class="font-normal bg-slate-600 rounded-md py-3 px-10 mt-4" style="background-color: #3c3c3c;text-align: center;">Optimize your code</p>
+					<p class="font-normal bg-slate-600 rounded-md py-3 px-10 mt-4" style="background-color: #3c3c3c;text-align: center;">Debug and fix errors</p>
+					<p class="font-normal bg-slate-600 rounded-md py-3 px-10 mt-4" style="background-color: #3c3c3c;text-align: center;">Save snippets</p>
+					<p class="font-normal bg-slate-600 rounded-md py-3 px-10 mt-4" style="background-color: #3c3c3c;text-align: center;">Quickly insert snippets</p>
+				</div>
+			</div>
+	
+			<div class="usage flex flex-col items-center">
+	
+				<div class="flex flex-col items-center mt-4">
+					<p class="font-normal text-gray-300">Use AI anywhere</p>
+					<p class="text-white">(<strong class="font-bold">Ctrl/cmd + Shift + A</strong>)</p>
+				</div>
+	
+				<div class="flex flex-col items-center mt-4">
+					<p class="font-normal text-gray-300">How to use the AI</p>
+					<p class="text-white">1. <strong class="font-bold">Select Code</strong></p>
+					<p class="text-white">2. <strong class="font-bold">Right Click</strong></p>
+					<p class="text-white">3. <strong class="font-bold">Select AI -> Function</strong></p>
+				</div>
+	
+				<div class="flex flex-col items-center mt-4">
+					<p class="font-normal text-gray-300">Quick insert Snippets</p>
+					<p class="text-white">(<strong class="font-bold">Ctrl/cmd + Shift + Q</strong>)</p>
+				</div>
+			</div>
+			
+			<!-- <div class="w-full h-48"></div> -->
+		</div>
+		
+		<div class="chats hidden" style="width: 100%;">
+			
+			<!-- <div class="assistant chat px-4 py-4 mb-4 rounded-md" style="background-color: #3c3c3c;">
+				<div class="flex">
+					<img class="rounded" src="./icon.png" style="width: 30px;height: 30px;" />
+					<p class="text-gray-200 ml-2 text-lg">Code Snippets AI</p>
+				</div>
+				<div class="prompt text-white font-normal mt-2">
+					Generate Unit Test Case For The Selected Code
+				</div>
+			</div>
+
+			<div class="user chat px-4 py-4 mb-4 rounded-md" style="background: linear-gradient(90deg, #4f4966, #3a3451);">
+				<div class="flex">
+					<img class="rounded" src="./profile-user.png" style="width: 30px;height: 30px;" />
+					<p class="text-gray-200 ml-2 text-lg">You</p>
+				</div>
+				<div class="prompt text-white font-normal mt-2 ">
+					Generate Unit Test Case For The Selected Code
+				</div>
+			</div> -->
+
+		</div>
+
+		<div id="loader" class="rounded-xl p-4 bg-slate-700 text-white fixed bottom-14 right-0 mx-2">
+			Stop Generating
+		</div>
+
+		<form  class="searhbar flex items-center pt-2 px-2 fixed bottom-2 rounded-md  text-slate-100" style="width: 95%;background-color: #3c3c3c;">
+			
+			<textarea id="textarea" class="w-full bg-transparent font-normal placeholder:text-slate-300 placeholder:font-normal max-h-6" 
+			style="border: none;text-decoration: none; width: 85%;resize: none;" placeholder="Turn your questions into code"></textarea>
+
+			<div class="flex py-1 items-center">
+				<button class="hover:bg-slate-600" style="padding: 5px;" type="submit">
+					<img id="reset-button" src="./plus.png" style="width: 15px;height: 15px;">
+				</button>
+				<button class="ml-3">
+					<img src="./icon.png" style="width: 30px;height: 30px;">
+				</button>
+			</div>
+
+		</form>
+
+	</div>
+
+	<script src="./main.js" ></script>
+</body>
+
+</html>
