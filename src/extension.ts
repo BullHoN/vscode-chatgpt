@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import axios from 'axios'
+import getMAC from 'getmac'
 
 
 function getCodeExplanationPrompt(prompt){
@@ -324,14 +325,16 @@ function checkAPIKEY() : Boolean{
 }
 
 let editor = null;
+let authToken = null;
 
 export function activate(context: vscode.ExtensionContext) {
 
 	const provider = new GPTViewProvider(context.extensionUri);
 
+
 	context.subscriptions.push(
 		vscode.window.registerWebviewViewProvider(GPTViewProvider.viewType, provider));
-	
+
 
 	const explainDisposable = vscode.commands.registerCommand('code-instance.explain',async ()=>{
 		
@@ -586,7 +589,10 @@ enum CustomEventCommand {
 	POST_MESSAGE = "POST_MESSAGE",
 	INIT = "INIT",
 	COPY_CLIPBOARD = "COPY_CLIPBOARD",
-	INSERT_EDITOR = "INSERT_EDITOR"
+	INSERT_EDITOR = "INSERT_EDITOR",
+	ERROR_MESSAGE = "ERROR_MESSAGE",
+	GENERATE_PROMPT = "GENERATE_PROMPT",
+	REGENRATED_PROMPT = "REGENRATED_PROMPT"
 }
 
 type Message = {
@@ -594,6 +600,12 @@ type Message = {
 	content: String
 };
 
+type Payload = {
+	"access_key": string,
+	"user_id": string,
+	"messages": Message[],
+	"model": string
+}
 
 async function getAPIResponse(messages: Message[]) : Promise<Message>{
 
@@ -603,20 +615,29 @@ async function getAPIResponse(messages: Message[]) : Promise<Message>{
 	try {
 		
 		const confival = vscode.workspace.getConfiguration();
-		const url = "https://api.openai.com/v1/chat/completions";
+		const url = "https://generateresponse-72p2kom4ca-uc.a.run.app";
+		const apiKey : string = confival.get('API_KEY');
+
 		const model = "gpt-3.5-turbo"
-		const payload = {
+		const payload : Payload = {
 			"model": model,
-			"messages": messages
-		  }
-		const apiKey = confival.get('API_KEY');
+			"messages": messages,
+			user_id: getMAC(),
+			access_key: apiKey
+		}
+
+		let headers = {};
+		if(authToken){
+			headers = {
+				"Authorization": `Bearer ${authToken}`
+			}
+		}
 
 		const res = await axios.post(url,payload,{
-			headers: {
-				"Authorization": `Bearer ${apiKey}`
-			}
+			headers: headers
 		});
-	
+		
+		authToken = res.data.access_token;
 		return {
 			role: Role.Assistant,
 			content: res.data.choices[0].message.content
@@ -624,7 +645,7 @@ async function getAPIResponse(messages: Message[]) : Promise<Message>{
 	} catch (error) {
 		return {
 			role: Role.Assistant,
-			content: error.message
+			content: error.response.data.message
 		}	
 	}
 
@@ -710,10 +731,32 @@ class GPTViewProvider implements vscode.WebviewViewProvider {
 					}
 
 					break;
+				
+				case CustomEventCommand.ERROR_MESSAGE:
+					const errorMessage = data.message;
+					vscode.window.showErrorMessage(errorMessage);
+					break;
+
+				case CustomEventCommand.GENERATE_PROMPT:
+					const promptPayload = [data.message]
+
+					if(!checkAPIKEY()){
+						return;
+					}
+
+					const generatedPrompt : Message = await getAPIResponse(promptPayload)
+					this.sendGeneratedPrompt(generatedPrompt);
+					break;
 
 			}
 
 		});
+	}
+
+	public sendGeneratedPrompt(message : Message){
+		if (this._view) {
+			this._view.webview.postMessage({ type: CustomEventCommand.REGENRATED_PROMPT, message: message });
+		}
 	}
 
 	public async startConversation(message : Message, truncatedMessage : Message){
@@ -764,7 +807,8 @@ class GPTViewProvider implements vscode.WebviewViewProvider {
 			/>
 
 			<script src="https://unpkg.com/typewriter-effect@latest/dist/core.js"></script>
-			
+			<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
 			<title>CHAT</title>
 			<style>
 				textarea:focus {
@@ -808,16 +852,82 @@ class GPTViewProvider implements vscode.WebviewViewProvider {
 					</div>
 			
 					<div class="features flex flex-col items-center mt-6">
-						<p class="text-white text-xl">How can I help?</p>
-						<div class="text-gray-300 mt-2">
-							<p class="font-normal bg-slate-600 rounded-md py-3 px-10 mt-4" style="background-color: #3c3c3c;text-align: center;">Turn your questions into code</p>
-							<p class="font-normal bg-slate-600 rounded-md py-3 px-10 mt-4" style="background-color: #3c3c3c;text-align: center;">Optimize your code</p>
-							<p class="font-normal bg-slate-600 rounded-md py-3 px-10 mt-4" style="background-color: #3c3c3c;text-align: center;">Debug and fix errors</p>
-							<p class="font-normal bg-slate-600 rounded-md py-3 px-10 mt-4" style="background-color: #3c3c3c;text-align: center;">Get explanation of your code</p>
-							<p class="font-normal bg-slate-600 rounded-md py-3 px-10 mt-4" style="background-color: #3c3c3c;text-align: center;">Generate test cases for your code</p>
+					<p class="text-white text-xl">How can I help?</p>
+					<form id="prompt_generator" class="text-gray-300 mt-2">
+						
+						<select id="role" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
+							<option value="" selected>Select a role</option>
+							<option value="Revit Dynamo Expert">Revit Dynamo Expert</option>
+							<option value="Revit API with Python Developer">Revit API with Python Developer</option>
+							<option value="Revit API with C# Developer">Revit API with C# Developer</option>
+							<option value="Revit Add-In Specialist">Revit Add-In Specialist</option>
+							<option value="BIM Modeler">BIM Modeler</option>
+							<option value="BIM Coordinator">BIM Coordinator</option>
+							<option value="BIM Manager">BIM Manager</option>
+							<option value="BIM Analyst">BIM Analyst</option>
+							<option value="BIM Consultant">BIM Consultant</option>
+							<option value="BIM Technician">BIM Technician</option>
+							<option value="BIM Project Manager">BIM Project Manager</option>
+							<option value="BIM Implementation Specialist">BIM Implementation Specialist</option>
+							<option value="BIM Strategy Consultant">BIM Strategy Consultant</option>
+							<option value="BIM Data Manager">BIM Data Manager</option>
+							<option value="BIM Software Developer">BIM Software Developer</option>
+							<option value="BIM Integration Specialist">BIM Integration Specialist</option>
+						</select>
+	
+						<select id="tone" class="mt-2 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
+							<option value="" selected>Select a tone</option>
+							<option value="Professional Tone">Professional Tone</option>
+							<option value="Friendly Tone">Friendly Tone</option>
+							<option value="Enthusiastic Tone">Enthusiastic Tone</option>
+							<option value="Inquisitive Tone">Inquisitive Tone</option>
+							<option value="Skeptical Tone">Skeptical Tone</option>
+							<option value="Authoritative Tone">Authoritative Tone</option>
+							<option value="Educational Tone">Educational Tone</option>
+							<option value="Humorous Tone">Humorous Tone</option>
+							<option value="Motivational Tone">Motivational Tone</option>
+							<option value="Critical Tone">Critical Tone</option>
+							<option value="Reflective Tone">Reflective Tone</option>
+							<option value="Inspirational Tone">Inspirational Tone</option>
+							<option value="Directive Tone">Directive Tone</option>
+							<option value="Persuasive Tone">Persuasive Tone</option>
+							<option value="Playful Tone">Playful Tone</option>
+							<option value="Reassuring Tone">Reassuring Tone</option>
+							<option value="Analytical Tone">Analytical Tone</option>
+							<option value="Sincere Tone">Sincere Tone</option>
+						</select>
+	
+						<select id="writing_style" class="mt-2 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
+							<option value="" selected>Select a writing style</option>
+							<option value="Instructional/Tutorial Style">Instructional/Tutorial Style</option>
+							<option value="Conversational Style">Conversational Style</option>
+							<option value="Formal / Academic Style">Formal / Academic Style</option>
+							<option value="FAQ Style">FAQ Style</option>
+							<option value="Checklist Style">Checklist Style</option>
+							<option value="Problem-Solution Style">Problem-Solution Style</option>
+							<option value="Storytelling Style">Storytelling Style</option>
+							<option value="Interview Style">Interview Style</option>
+							<option value="Comparative Style">Comparative Style</option>
+							<option value="Technical / Detailed Style">Technical / Detailed Style</option>
+							<option value="Simplistic / Minimalist Style">Simplistic / Minimalist Style</option>
+							<option value="Analytical / Critical Style">Analytical / Critical Style</option>
+							<option value="Exploratory / Inquisitive Style">Exploratory / Inquisitive Style</option>
+							<option value="Instructional Design Style">Instructional Design Style</option>
+						</select>
+	
+						<input type="text" id="keywords" class="mt-2 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Enter comma seprated keywords" required />
+					
+						<button class="buttonload mt-2 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" type="submit"> <i id="prompt_loading" class="fa fa-spinner fa-spin" style="visibility:hidden"></i> Rewrite</button>
+					</form>
+	
+					<div id="prompt_view" class="mt-4 text-white items-center hidden" style="width:80%">
+						<p id="prompt_text" class="max-h-12 overflow-scroll bg-gray-50 border border-gray-400 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-900 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">/p>
+						<div class="flex flex-col ml-2 ">
+							<button id="prompt_copy" class="text-xs font-light">copy</button>
+							<button id="prompt_insert" class="text-xs font-light mt-1">Insert</button>
 						</div>
 					</div>
-			
+				</div>
 					<div class="usage flex flex-col items-center">
 			
 						<div class="flex flex-col items-center mt-4">
@@ -876,6 +986,30 @@ class GPTViewProvider implements vscode.WebviewViewProvider {
 				</form>
 		
 			</div>
+			<script type="module">
+				import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.10.0/firebase-app.js'
+			
+				// If you enabled Analytics in your project, add the Firebase SDK for Google Analytics
+				import { getAnalytics, logEvent } from 'https://www.gstatic.com/firebasejs/10.10.0/firebase-analytics.js'
+
+				const firebaseConfig = {
+					apiKey: "AIzaSyCdmdlZDKtQ7m5783YhKlEm8ePCPxIfr7c",
+					authDomain: "monkeyteam-io.firebaseapp.com",
+					projectId: "monkeyteam-io",
+					storageBucket: "monkeyteam-io.appspot.com",
+					messagingSenderId: "604429294527",
+					appId: "1:604429294527:web:6f126370dd183ebc4cdf0a",
+					measurementId: "G-T2CLXS5LC8"
+				  };
+				  
+				  // Initialize Firebase
+				  const app = initializeApp(firebaseConfig);
+				  const analytics = getAnalytics(app);
+
+				  console.log("logEvent",logEvent);
+				  logEvent(analytics,'page_view');
+
+		  	</script>
 			<script src="${scriptUri}" ></script>
 		</body>
 		

@@ -35,12 +35,79 @@
 	
 			<div class="features flex flex-col items-center mt-6">
 				<p class="text-white text-xl">How can I help?</p>
-				<div class="text-gray-300 mt-2">
-					<p class="font-normal bg-slate-600 rounded-md py-3 px-10 mt-4" style="background-color: #3c3c3c;text-align: center;">Turn your questions into code</p>
-					<p class="font-normal bg-slate-600 rounded-md py-3 px-10 mt-4" style="background-color: #3c3c3c;text-align: center;">Optimize your code</p>
-					<p class="font-normal bg-slate-600 rounded-md py-3 px-10 mt-4" style="background-color: #3c3c3c;text-align: center;">Debug and fix errors</p>
-					<p class="font-normal bg-slate-600 rounded-md py-3 px-10 mt-4" style="background-color: #3c3c3c;text-align: center;">Save snippets</p>
-					<p class="font-normal bg-slate-600 rounded-md py-3 px-10 mt-4" style="background-color: #3c3c3c;text-align: center;">Quickly insert snippets</p>
+				<form class="text-gray-300 mt-2">
+
+					<select id="roles" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
+						<option value="" selected>Select a role</option>
+						<option value="Revit Dynamo Expert">Revit Dynamo Expert</option>
+						<option value="Revit API with Python Developer">Revit API with Python Developer</option>
+						<option value="Revit API with C# Developer">Revit API with C# Developer</option>
+						<option value="Revit Add-In Specialist">Revit Add-In Specialist</option>
+						<option value="BIM Modeler">BIM Modeler</option>
+						<option value="BIM Coordinator">BIM Coordinator</option>
+						<option value="BIM Manager">BIM Manager</option>
+						<option value="BIM Analyst">BIM Analyst</option>
+						<option value="BIM Consultant">BIM Consultant</option>
+						<option value="BIM Technician">BIM Technician</option>
+						<option value="BIM Project Manager">BIM Project Manager</option>
+						<option value="BIM Implementation Specialist">BIM Implementation Specialist</option>
+						<option value="BIM Strategy Consultant">BIM Strategy Consultant</option>
+						<option value="BIM Data Manager">BIM Data Manager</option>
+						<option value="BIM Software Developer">BIM Software Developer</option>
+						<option value="BIM Integration Specialist">BIM Integration Specialist</option>
+					</select>
+
+					<select id="tone" class="mt-2 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
+						<option value="" selected>Select a tone</option>
+						<option value="Professional Tone">Professional Tone</option>
+						<option value="Friendly Tone">Friendly Tone</option>
+						<option value="Enthusiastic Tone">Enthusiastic Tone</option>
+						<option value="Inquisitive Tone">Inquisitive Tone</option>
+						<option value="Skeptical Tone">Skeptical Tone</option>
+						<option value="Authoritative Tone">Authoritative Tone</option>
+						<option value="Educational Tone">Educational Tone</option>
+						<option value="Humorous Tone">Humorous Tone</option>
+						<option value="Motivational Tone">Motivational Tone</option>
+						<option value="Critical Tone">Critical Tone</option>
+						<option value="Reflective Tone">Reflective Tone</option>
+						<option value="Inspirational Tone">Inspirational Tone</option>
+						<option value="Directive Tone">Directive Tone</option>
+						<option value="Persuasive Tone">Persuasive Tone</option>
+						<option value="Playful Tone">Playful Tone</option>
+						<option value="Reassuring Tone">Reassuring Tone</option>
+						<option value="Analytical Tone">Analytical Tone</option>
+						<option value="Sincere Tone">Sincere Tone</option>
+					</select>
+
+					<select id="writing_style" class="mt-2 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" required>
+						<option value="">Select a writing style</option>
+						<option value="Instructional/Tutorial Style">Instructional/Tutorial Style</option>
+						<option value="Conversational Style">Conversational Style</option>
+						<option value="Formal / Academic Style">Formal / Academic Style</option>
+						<option value="FAQ Style">FAQ Style</option>
+						<option value="Checklist Style">Checklist Style</option>
+						<option value="Problem-Solution Style">Problem-Solution Style</option>
+						<option value="Storytelling Style">Storytelling Style</option>
+						<option value="Interview Style">Interview Style</option>
+						<option value="Comparative Style">Comparative Style</option>
+						<option value="Technical / Detailed Style">Technical / Detailed Style</option>
+						<option value="Simplistic / Minimalist Style">Simplistic / Minimalist Style</option>
+						<option value="Analytical / Critical Style">Analytical / Critical Style</option>
+						<option value="Exploratory / Inquisitive Style">Exploratory / Inquisitive Style</option>
+						<option value="Instructional Design Style">Instructional Design Style</option>
+					</select>
+
+					<input type="text" id="keywords" class="mt-2 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Enter comma seprated keywords" required />
+				
+					<button class="mt-2 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" type="submit">Rewrite</button>
+				</form>
+
+				<div class="flex mt-4 text-white items-center">
+					<p class="bg-gray-50 border border-gray-400 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-900 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">Some generated prompt</p>
+					<div class="flex flex-col ml-2 ">
+						<button id="prompt_copy" class="text-xs font-light bg-gray-800 p-1 rounded-md">copy</button>
+						<button id="prompt_insert" class="text-xs font-light mt-1">Insert</button>
+					</div>
 				</div>
 			</div>
 	

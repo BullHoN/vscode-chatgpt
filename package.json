@@ -27,7 +27,7 @@
 			"title": "monkeyteam-io",
 			"properties": {
 				"API_KEY": {
-					"type":"string"
+					"type": "string"
 				}
 			}
 		},
@@ -181,6 +181,7 @@
 		"typescript": "^5.3.2"
 	},
 	"dependencies": {
-		"axios": "^1.6.8"
+		"axios": "^1.6.8",
+		"getmac": "^6.6.0"
 	}
 }

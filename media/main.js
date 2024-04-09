@@ -1,6 +1,6 @@
 console.log('script loaded successfully')
 hljs.initHighlightingOnLoad();
-// hljs.addPlugin(new CopyButtonPlugin());
+
 
 const resetButton = document.getElementById('reset-button');
 const defaultContent = document.getElementById('default-content')
@@ -8,6 +8,14 @@ const chats = document.querySelector('.chats')
 const form = document.querySelector('.searhbar');
 const textarea = document.getElementById('textarea');
 const loader = document.getElementById('loader');
+const promptView = document.getElementById('prompt_view');
+const promptText = document.getElementById('prompt_text');
+
+
+const regeneratePromptForm = document.getElementById('prompt_generator');
+const promptCopyButton = document.getElementById('prompt_copy');
+const promptInsertButton = document.getElementById('prompt_insert')
+const promptLoading = document.getElementById('prompt_loading');
 
 const vscode = acquireVsCodeApi();
 let userIconURI = "";
@@ -290,6 +298,78 @@ form.addEventListener('submit',(e) => {
     console.log('form submitted')
 })
 
+function sendErrorMessage(message){
+    vscode.postMessage({
+        command: "ERROR_MESSAGE",
+        message: message
+    })
+}
+
+function regeneratePrompt(obj){
+
+    const action = "rewrite";
+
+    return `
+        You are to act as ${obj.role}, providing prompts appropriate to the given topics in the context of ${obj.role} in ${obj.tone}, in the style of ${obj.writingStyle}, with ${action}. The prompts should be self-explanatory and not refer to any examples given. Topic is ${obj.keywords}.
+    `;
+}
+
+regeneratePromptForm.addEventListener('submit',(e)=>{
+    e.preventDefault();
+
+    const roleView = document.getElementById('role');
+    const role = roleView.options[roleView.selectedIndex].value;
+
+    if(roleView.selectedIndex == 0){
+        sendErrorMessage("Please select the role!");
+        return;
+    }
+
+    const toneView = document.getElementById('tone');
+    const tone = toneView.options[toneView.selectedIndex].value;
+
+    if(toneView.selectedIndex == 0){
+        sendErrorMessage("Please select the tone!");
+        return;
+    }
+
+    const writingStyleView = document.getElementById('writing_style');
+    const writingStyle = writingStyleView.options[writingStyleView.selectedIndex].value;
+
+    if(writingStyleView.selectedIndex == 0){
+        sendErrorMessage("Please select the writing style");
+        return;
+    }
+
+    const keywords = document.getElementById('keywords').value;
+
+    const message = {
+        role: "user",
+        content: regeneratePrompt({role,tone,writingStyle,keywords})
+    }
+
+    promptLoading.style.visibility = "visible";
+
+    vscode.postMessage({
+        command: "GENERATE_PROMPT",
+        message: message
+    })  
+
+})
+
+promptCopyButton.addEventListener('click',(e)=>{
+    e.preventDefault();
+
+    vscode.postMessage({
+        command: "COPY_CLIPBOARD",
+        message: promptText.innerText
+    })
+})
+
+promptInsertButton.addEventListener('click',(e)=>{
+    e.preventDefault();
+    textarea.value = promptText.innerText;
+})
 
 window.addEventListener('message',(event) => {
     const type = event.data.type;
@@ -318,6 +398,18 @@ window.addEventListener('message',(event) => {
             mainIconURI = `${event.data.mainIconURI}`;
             userIconURI = `${event.data.userIconURI}`;
             companyLogoURI = `${event.data.compandLogoURI}`;
+
+            break;
+
+        case 'REGENRATED_PROMPT':
+            const promptData = event.data.message
+            promptView.style.display = "flex";
+            promptText.innerText = promptData.content;
+
+            promptLoading.style.visibility = "hidden";
+
+            break;
+            
     }
 
 })
