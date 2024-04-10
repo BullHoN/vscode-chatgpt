@@ -110,12 +110,48 @@ function getAssistandCard(prompt){
     flexDiv.appendChild(img);
     flexDiv.appendChild(img2);
 
+    const flexDiv2 = document.createElement("div");
+    flexDiv2.classList.add("flex");
+    flexDiv2.classList.add("justify-between","items-center");
+
+    flexDiv2.appendChild(flexDiv);
+
+    const buttonflexdiv = document.createElement("div");
+    const copyResponseButton = document.createElement("button");
+    copyResponseButton.classList.add("bg-white", "text-black", "text-xs" , "rounded-md", "p-1");
+    copyResponseButton.innerText = "copy";
+
+    copyResponseButton.onclick = (e)=>{
+        e.preventDefault();
+        vscode.postMessage({
+            command: "COPY_CLIPBOARD",
+            message: prompt
+        })
+    }
+    
+    const insertResponseButton = document.createElement("button");
+    insertResponseButton.classList.add("bg-white", "text-black", "text-xs" , "rounded-md", "p-1","ml-1");
+    insertResponseButton.innerText = "insert";
+
+    insertResponseButton.onclick = (e)=>{
+        e.preventDefault();
+        vscode.postMessage({
+            command: "INSERT_EDITOR",
+            message: prompt
+        })
+    }
+
+    buttonflexdiv.appendChild(copyResponseButton);
+    buttonflexdiv.appendChild(insertResponseButton);
+
+    flexDiv2.appendChild(buttonflexdiv);
+
     // Create the prompt div
     var promptDiv = document.createElement("div");
     promptDiv.classList.add("prompt", "text-white", "font-normal", "mt-2");
 
     // Append the flex div and prompt div to the main div
-    mainDiv.appendChild(flexDiv);
+    mainDiv.appendChild(flexDiv2);
     mainDiv.appendChild(promptDiv);
 
     // Append the main div to the document body or any other desired parent element
@@ -403,8 +439,12 @@ window.addEventListener('message',(event) => {
 
         case 'REGENRATED_PROMPT':
             const promptData = event.data.message
+
+            const roleView = document.getElementById('role');
+            const role = roleView.options[roleView.selectedIndex].value;
+
             promptView.style.display = "flex";
-            promptText.innerText = promptData.content;
+            promptText.innerText = `act as ${role}, ${promptData.content}`;
 
             promptLoading.style.visibility = "hidden";
 

@@ -920,15 +920,15 @@ class GPTViewProvider implements vscode.WebviewViewProvider {
 						<button class="buttonload mt-2 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" type="submit"> <i id="prompt_loading" class="fa fa-spinner fa-spin" style="visibility:hidden"></i> Rewrite</button>
 					</form>
 	
-					<div id="prompt_view" class="mt-4 text-white items-center hidden" style="width:80%">
-						<p id="prompt_text" class="max-h-12 overflow-scroll bg-gray-50 border border-gray-400 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-900 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">/p>
-						<div class="flex flex-col ml-2 ">
+					<div id="prompt_view" class="flex flex-col mt-4 text-white items-center hidden" style="width:80%">
+						<div class="flex ml-2 justify-end w-full items-center">
 							<button id="prompt_copy" class="text-xs font-light">copy</button>
-							<button id="prompt_insert" class="text-xs font-light mt-1">Insert</button>
+							<button id="prompt_insert" class="ml-2 text-xs font-light">Insert</button>
 						</div>
+						<p id="prompt_text" class="mt-1 max-h-24 overflow-scroll bg-gray-50 border border-gray-400 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-900 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">/p>
 					</div>
 				</div>
-					<div class="usage flex flex-col items-center">
+					<div class="usage flex flex-col items-center hidden" style="visibility:hidden">
 			
 						<div class="flex flex-col items-center mt-4">
 							<p class="font-normal text-gray-300">Use AI anywhere</p>
@@ -956,8 +956,17 @@ class GPTViewProvider implements vscode.WebviewViewProvider {
 				<div class="chats hidden" style="width: 100%;">
 				</div>
 				
+				<div class="flex flex-col items-center mt-4">
+					<a href="http://google.com" class="text-lg font-normal">Checkout Docs</a>
+				</div>
+
 				<div class="usage flex flex-col items-center" style="visibility:hidden">
 				
+				<div class="flex flex-col items-center mt-2">
+					<p class="font-normal text-gray-300">How to use the AI</p>
+					<p class="text-white">1. <strong class="font-bold">Select Code</strong></p>
+				</div>
+
 				<div class="flex flex-col items-center mt-2">
 					<p class="font-normal text-gray-300">How to use the AI</p>
 					<p class="text-white">1. <strong class="font-bold">Select Code</strong></p>
@@ -971,7 +980,7 @@ class GPTViewProvider implements vscode.WebviewViewProvider {
 
 				<form  class="searhbar flex items-center pt-2 px-2 fixed bottom-2 rounded-md  text-slate-200" style="width: 95%;background-color: #3c3c3c;">
 					
-					<textarea id="textarea" class="w-full bg-transparent font-normal placeholder:text-slate-300 placeholder:font-normal max-h-6" 
+					<textarea id="textarea" class="w-full bg-transparent font-normal placeholder:text-slate-300 placeholder:font-normal h-16" 
 					style="border: none;text-decoration: none; width: 85%;resize: none;" placeholder="Turn your questions into code"></textarea>
 		
 					<div class="flex py-1 items-center">
