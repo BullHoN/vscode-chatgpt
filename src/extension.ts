@@ -1,7 +1,9 @@
 import * as vscode from 'vscode';
 import axios from 'axios'
 import getMAC from 'getmac'
+import { exec } from 'child_process';
 
+declare const __dirname: string;
 
 function getCodeExplanationPrompt(prompt){
 	return `
@@ -327,10 +329,53 @@ function checkAPIKEY() : Boolean{
 let editor = null;
 let authToken = null;
 
+function executeCommand(command: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+        exec(command,{cwd: __dirname }, (error, stdout, stderr) => {
+            if (error) {
+                reject(error);
+                return;
+            }
+            if (stderr) {
+                reject(new Error(stderr));
+                return;
+            }
+            resolve(stdout);
+        });
+    });
+}
+
+function installRequiredExtensions(){
+	const extensionsId = ['ms-python.python','ms-python.debugpy','ms-python.pylint','ms-python.vscode-pylance'];
+
+	extensionsId.forEach((id) => {
+		const cmnd = `code --install-extension "ms-python.pylint"`;
+		executeCommand(cmnd);
+	})
+}
+
+function selectTheInsertedCode(editor : vscode.TextEditor, data: String, cursorPosition : vscode.Position){
+	const insertedCodeSplitByLine = data.split("\n");
+	const noOfLines = insertedCodeSplitByLine.length - 1;
+	const noOfChars = insertedCodeSplitByLine[noOfLines].length;
+
+	const startPosition = new vscode.Position(cursorPosition.line,cursorPosition.character);
+	const endPosition = new vscode.Position(cursorPosition.line+noOfChars,noOfChars);
+	const myRange = new vscode.Range(startPosition,endPosition);
+
+	editor.selection = new vscode.Selection(myRange.start,myRange.end);
+}
+
+let momento : vscode.Memento;
+const stored_message_key = "messages";
+let provider;
+
 export function activate(context: vscode.ExtensionContext) {
 
-	const provider = new GPTViewProvider(context.extensionUri);
+	provider = new GPTViewProvider(context.extensionUri);
+	momento = context.workspaceState;
 
+	installRequiredExtensions();
 
 	context.subscriptions.push(
 		vscode.window.registerWebviewViewProvider(GPTViewProvider.viewType, provider));
@@ -569,6 +614,66 @@ export function activate(context: vscode.ExtensionContext) {
 		await provider.startConversation(actualMessage,truncatedMessage)
 	})
 
+	const codeCompletionDisposable = vscode.commands.registerCommand('code-instance.code_completion',async ()=>{
+		try {
+			
+			const editor = vscode.window.activeTextEditor;
+			const document = editor.document;
+			const selection = editor.selection;
+			const cursorPosition = selection.end;
+			
+			const startLine = Math.max(cursorPosition.line - 5, 0);
+			const endLine = Math.min(cursorPosition.line + 5, document.lineCount - 1);
+			
+			const prefix = document.getText(new vscode.Range(new vscode.Position(startLine, 0), cursorPosition));
+			const suffix = document.getText(new vscode.Range(new vscode.Position(cursorPosition.line, 0), new vscode.Position(endLine, document.lineAt(endLine).text.length)));
+
+			const prompt = `Given the current code snippet, suggest possible completion(max 3 lines) take care of indentation. Don't return provided code-snippet
+				
+				code-snippet: function add(a,b){
+					return a + b;
+				}
+
+				response: \nfunction subtract(a,b){\n\treturn a-b;\n}\n
+
+				code-snippet: function add(a,b){
+
+				response: \n\treturn a + b;\n}\n
+	
+				code-snippet: ${prefix}
+				response: 
+			`
+
+			const message : Message = {
+				role: "user",
+				content: prompt
+			}
+
+			let responseText
+			vscode.window.withProgress({
+				location: vscode.ProgressLocation.Notification,
+				cancellable: true,
+				title: 'Code Completion'
+			}, async (progress) => {
+
+				progress.report({message: "Fetching Response..."});
+
+				const response : Message = await getAPIResponse([message]);
+				responseText  = response.content as string;
+	
+				editor.edit(editBuilder => {
+					return editBuilder.insert(cursorPosition, responseText);
+				})
+
+			})
+
+			// selectTheInsertedCode(editor,responseText,cursorPosition);
+
+		} catch (error) {
+			vscode.window.showErrorMessage(error.message);
+		}
+	})
+
 	context.subscriptions.push(explainDisposable);
 	context.subscriptions.push(unitTestcaseDisposable);
 	context.subscriptions.push(commentsDisposable);
@@ -576,8 +681,16 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(codeRefactorDisposable);
 	context.subscriptions.push(codeOptimizeDisposable);
 	context.subscriptions.push(askAnythingDisposable);
+	context.subscriptions.push(codeCompletionDisposable);
 
 }
+
+// export async function deactivate(){
+// 	if(provider && momento){
+// 		console.log("save all messages",provider.getAllMessages());
+// 		await momento.update(stored_message_key,provider.getAllMessages());
+// 	}
+// }
 
 enum Role {
 	Assistant = "assistant",
@@ -592,7 +705,8 @@ enum CustomEventCommand {
 	INSERT_EDITOR = "INSERT_EDITOR",
 	ERROR_MESSAGE = "ERROR_MESSAGE",
 	GENERATE_PROMPT = "GENERATE_PROMPT",
-	REGENRATED_PROMPT = "REGENRATED_PROMPT"
+	REGENRATED_PROMPT = "REGENRATED_PROMPT",
+	CLEAR_HISTORY = "CLEAR_HISTORY"
 }
 
 type Message = {
@@ -658,6 +772,7 @@ class GPTViewProvider implements vscode.WebviewViewProvider {
 	private _view?: vscode.WebviewView;
 
 	private messages : Message[] = [];
+	private userMessages : Message[] = [];
 	private mainIconURI: any ;
 	private userIconURI: any;
 	private compandLogoURI: any;
@@ -692,14 +807,24 @@ class GPTViewProvider implements vscode.WebviewViewProvider {
 			switch(command){
 				case CustomEventCommand.CALL_API : 
 					const newMessage = data.message
+					const userPrompt = data.userPrompt;
 
 					if(!checkAPIKEY()){
 						return;
 					}
 
 					this.messages.push(newMessage);
+					this.userMessages.push({
+						role: "user",
+						content: userPrompt
+					});
+
 					const res : Message = await getAPIResponse(this.messages)
 					this.sendMessage(res);
+					this.messages.push(res);
+					this.userMessages.push(res);
+
+					momento.update(stored_message_key,this.userMessages);
 					break;
 
 				case CustomEventCommand.INIT:
@@ -748,9 +873,21 @@ class GPTViewProvider implements vscode.WebviewViewProvider {
 					this.sendGeneratedPrompt(generatedPrompt);
 					break;
 
+				case CustomEventCommand.CLEAR_HISTORY:
+					this.messages = [];
+					this.userMessages = [];
+					
+					console.log("clear all history");
+					await momento.update(stored_message_key,this.userMessages);
+					break;
+
 			}
 
 		});
+	}
+
+	public getAllMessages(){
+		return this.messages;
 	}
 
 	public sendGeneratedPrompt(message : Message){
@@ -762,8 +899,12 @@ class GPTViewProvider implements vscode.WebviewViewProvider {
 	public async startConversation(message : Message, truncatedMessage : Message){
 		this.sendMessage(truncatedMessage);
 		this.messages.push(message);
+
+		this.userMessages.push(truncatedMessage);
 		const res : Message = await getAPIResponse(this.messages)
 		this.sendMessage(res);	
+		this.messages.push(res);
+		this.userMessages.push(res);
 	}
 
 	public sendMessage(message : Message) {
@@ -774,7 +915,19 @@ class GPTViewProvider implements vscode.WebviewViewProvider {
 
 	public init(){
 		if (this._view) {
-			this._view.webview.postMessage({ type: CustomEventCommand.INIT, mainIconURI: this.mainIconURI, userIconURI: this.userIconURI, compandLogoURI: this.compandLogoURI });
+			let messages = [];
+			if(momento && momento.get(stored_message_key)){
+				messages = momento.get(stored_message_key);
+			}
+
+			console.log("prev messages",messages);
+			this._view.webview.postMessage({
+				type: CustomEventCommand.INIT, 
+				mainIconURI: this.mainIconURI,
+				userIconURI: this.userIconURI,
+				compandLogoURI: this.compandLogoURI,
+				messages: messages
+			});
 		}
 	}
 
@@ -806,7 +959,7 @@ class GPTViewProvider implements vscode.WebviewViewProvider {
 			href="https://unpkg.com/@highlightjs/cdn-assets@11.7.0/styles/github-dark.min.css"
 			/>
 
-			<script src="https://unpkg.com/typewriter-effect@latest/dist/core.js"></script>
+			<script src="https://unpkg.com/typewriter-effect@2.21.0/dist/core.js"></script>
 			<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 
 			<title>CHAT</title>
@@ -835,6 +988,11 @@ class GPTViewProvider implements vscode.WebviewViewProvider {
 				li {
 					margin: 8px 0px !important;
 				}
+
+				roles_results {
+					overflow: auto;
+					cursor:pointer;
+				}
 			</style>
 		</head>
 		<body class="py-12" style="font-family: Segoe WPC, Segoe UI, sans-serif; font-weight: bold;">
@@ -847,34 +1005,17 @@ class GPTViewProvider implements vscode.WebviewViewProvider {
 							<img src="${this.compandLogoURI}" style="width:70%" />
 						</a>
 			
-						<p class="text-white mt-3" style="font-size: 22px;text-align: center;">Hi, I'm your AI powered programmer</p>
-						<img class="mt-2" src="https://codesnippets.ai/_next/image?url=%2Fassets%2Fimages%2Fpoweredby.png&w=384&q=75" style="height: 60px;" />
+						<p class="text-white mt-3" style="font-size: 22px;text-align: center;">Learn like a Child & Implement like a Professional</p>
+						<p>powered by #bimeraacademy</p>
 					</div>
 			
 					<div class="features flex flex-col items-center mt-6">
-					<p class="text-white text-xl">How can I help?</p>
+					<p class="text-white text-xl">Let me help you write a prompt</p>
 					<form id="prompt_generator" class="text-gray-300 mt-2">
 						
-						<select id="role" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
-							<option value="" selected>Select a role</option>
-							<option value="Revit Dynamo Expert">Revit Dynamo Expert</option>
-							<option value="Revit API with Python Developer">Revit API with Python Developer</option>
-							<option value="Revit API with C# Developer">Revit API with C# Developer</option>
-							<option value="Revit Add-In Specialist">Revit Add-In Specialist</option>
-							<option value="BIM Modeler">BIM Modeler</option>
-							<option value="BIM Coordinator">BIM Coordinator</option>
-							<option value="BIM Manager">BIM Manager</option>
-							<option value="BIM Analyst">BIM Analyst</option>
-							<option value="BIM Consultant">BIM Consultant</option>
-							<option value="BIM Technician">BIM Technician</option>
-							<option value="BIM Project Manager">BIM Project Manager</option>
-							<option value="BIM Implementation Specialist">BIM Implementation Specialist</option>
-							<option value="BIM Strategy Consultant">BIM Strategy Consultant</option>
-							<option value="BIM Data Manager">BIM Data Manager</option>
-							<option value="BIM Software Developer">BIM Software Developer</option>
-							<option value="BIM Integration Specialist">BIM Integration Specialist</option>
-						</select>
-	
+						<input type="text" id="role" class="mt-2 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Select a role" required />
+						<ul id="rolessearchresult" class="absolute max-h-24 cursor-pointer overflow-auto z-10 bg-gray-800 border border-gray-300 rounded-md mt-1 shadow-lg"></ul>
+
 						<select id="tone" class="mt-2 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
 							<option value="" selected>Select a tone</option>
 							<option value="Professional Tone">Professional Tone</option>
@@ -915,6 +1056,45 @@ class GPTViewProvider implements vscode.WebviewViewProvider {
 							<option value="Instructional Design Style">Instructional Design Style</option>
 						</select>
 	
+						<select name="task" id="task" class="mt-2 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
+							<option value="" selected>Select a task</option>
+							<option value="Explain">Explain</option>
+							<option value="Plan">Plan</option>
+							<option value="Translate">Translate</option>
+							<option value="Calculate">Calculate</option>
+							<option value="Identify">Identify</option>
+							<option value="Generate">Generate</option>
+							<option value="Classify">Classify</option>
+							<option value="Detect">Detect</option>
+							<option value="Convert">Convert</option>
+							<option value="Recognize">Recognize</option>
+							<option value="Simulate">Simulate</option>
+							<option value="Facilitate">Facilitate</option>
+							<option value="Automate">Automate</option>
+							<option value="Monitor">Monitor</option>
+							<option value="Customize">Customize</option>
+							<option value="Personalize">Personalize</option>
+							<option value="Enhance">Enhance</option>
+							<option value="Discover">Discover</option>
+							<option value="Streamline">Streamline</option>
+							<option value="Adapt">Adapt</option>
+							<option value="Stream">Stream</option>
+							<option value="Filter">Filter</option>
+							<option value="Track">Track</option>
+							<option value="Design">Design</option>
+							<option value="Collaborate">Collaborate</option>
+							<option value="Debug">Debug</option>
+							<option value="Improve">Improve</option>
+							<option value="Analyze">Analyze</option>
+							<option value="Optimize">Optimize</option>
+							<option value="Diagnose">Diagnose</option>
+							<option value="Recommend">Recommend</option>
+							<option value="Validate">Validate</option>
+							<option value="Summarize">Summarize</option>
+							<option value="Predict">Predict</option>
+							<option value="Rank">Rank</option>
+						</select>
+
 						<input type="text" id="keywords" class="mt-2 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Enter comma seprated keywords" required />
 					
 						<button class="buttonload mt-2 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" type="submit"> <i id="prompt_loading" class="fa fa-spinner fa-spin" style="visibility:hidden"></i> Rewrite</button>
@@ -953,11 +1133,15 @@ class GPTViewProvider implements vscode.WebviewViewProvider {
 
 				</div>
 				
+				<nav class="flex justify-end bg-transparent fixed w-full z-20 top-0 start-0 border-none">
+					<button id="clear_history">Clear history</button>
+				</nav>
 				<div class="chats hidden" style="width: 100%;">
+
 				</div>
 				
 				<div class="flex flex-col items-center mt-4">
-					<a href="http://google.com" class="text-lg font-normal">Checkout Docs</a>
+					<a href="http://google.com" class="text-lg font-normal">monkeyteam.io guide</a>
 				</div>
 
 				<div class="usage flex flex-col items-center" style="visibility:hidden">
@@ -980,16 +1164,22 @@ class GPTViewProvider implements vscode.WebviewViewProvider {
 
 				<form  class="searhbar flex items-center pt-2 px-2 fixed bottom-2 rounded-md  text-slate-200" style="width: 95%;background-color: #3c3c3c;">
 					
-					<textarea id="textarea" class="w-full bg-transparent font-normal placeholder:text-slate-300 placeholder:font-normal h-16" 
+					<textarea id="textarea" class="w-full bg-transparent font-normal placeholder:text-slate-300 placeholder:font-normal h-20" 
 					style="border: none;text-decoration: none; width: 85%;resize: none;" placeholder="Turn your questions into code"></textarea>
 		
-					<div class="flex py-1 items-center">
-						<button class="hover:bg-slate-600" style="padding: 5px;" type="submit">
-							<img id="reset-button" src="${plusIconUri}" style="width: 15px;height: 15px;">
-						</button>
-						<button class="ml-3">
-							<img src="${this.mainIconURI}" style="width: 30px;height: 30px;">
-						</button>
+					<div class="flex flex-col py-1 items-center justify-end">
+						<div class="flex"> 
+							<button class="hover:bg-slate-600" style="padding: 5px;" type="submit">
+								<img id="reset-button" src="${plusIconUri}" style="width: 15px;height: 15px;">
+							</button>
+							<button class="ml-3" type="button">
+								<img src="${this.mainIconURI}" style="width: 30px;height: 30px;">
+							</button>
+						</div>
+						<div class="flex mt-2 items-center">
+							<input checked id="code-checkbox" type="checkbox" value="" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
+							<label for="code-checkbox" class="ms-2 text-sm font-medium text-gray-900 dark:text-gray-300">Code</label>
+						</div>
 					</div>
 		
 				</form>

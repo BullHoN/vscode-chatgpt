@@ -2,7 +2,7 @@
 	"name": "monkeyteam-io",
 	"description": "monkeyteam.io - ChatGPT Features For Vs-Code",
 	"version": "0.0.1",
-	"publisher": "monkeyteam.io",
+	"publisher": "monkeyteamio",
 	"private": true,
 	"icon": "./media/icon.png",
 	"license": "MIT",
@@ -36,7 +36,7 @@
 				{
 					"id": "ChatGPT-GPTView",
 					"title": "monkeyteam-io Chat",
-					"icon": "media/icon.png"
+					"icon": "media/simple_logo.png"
 				}
 			]
 		},
@@ -75,6 +75,11 @@
 				"command": "code-instance.ask_anything",
 				"category": "code-instance",
 				"title": "monkeyteam.io -> Ask Anything"
+			},
+			{
+				"command": "code-instance.code_completion",
+				"category": "code-instance",
+				"title": "monkeyteam.io -> Code Completion"
 			}
 		],
 		"menus": {
@@ -114,6 +119,11 @@
 					"when": "editorTextFocus",
 					"command": "code-instance.ask_anything",
 					"group": "code-instance"
+				},
+				{
+					"when": "editorTextFocus",
+					"command": "code-instance.code_completion",
+					"group": "code-instance"
 				}
 			]
 		},
@@ -152,6 +162,11 @@
 				"command": "code-instance.ask_anything",
 				"key": "alt+k",
 				"mac": "alt+k"
+			},
+			{
+				"command": "code-instance.code_completion",
+				"key": "ctrl+space",
+				"mac": "alt+q"
 			}
 		],
 		"views": {
@@ -172,6 +187,7 @@
 		"watch": "tsc -w -p ./"
 	},
 	"devDependencies": {
+		"@types/node": "^20.12.7",
 		"@types/vscode": "^1.73.0",
 		"@typescript-eslint/eslint-plugin": "^6.7.0",
 		"@typescript-eslint/parser": "^6.7.0",
